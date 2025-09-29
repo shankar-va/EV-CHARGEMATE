@@ -1,10 +1,44 @@
-import React from 'react';
+import React, { useState } from 'react';
 import ReactDOM from 'react-dom';
+import { bookingService } from '../services/api';
 
 const BookingForm = ({ station, onClose, onSuccess }) => {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+
   if (!station) return null;
 
-  // Modal content
+  const handleBooking = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      // Example: booking for 1 hour from now
+      const startTime = new Date();
+      const endTime = new Date(startTime.getTime() + 60 * 60 * 1000);
+      const duration = 1;
+
+      const response = await bookingService.createBooking({
+        stationId: station._id,
+        startTime,
+        endTime,
+        duration,
+      });
+
+      if (response.data.success) {
+        onSuccess(response.data.booking);
+        onClose();
+      } else {
+        setError("Booking failed. Please try again.");
+      }
+    } catch (err) {
+      console.error("Booking error:", err);
+      setError(err.response?.data?.message || "Booking failed.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const modalContent = (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6 relative">
@@ -20,9 +54,7 @@ const BookingForm = ({ station, onClose, onSuccess }) => {
           Book Charging Slot - {station.name}
         </h2>
 
-        <p className="text-sm text-gray-600 mb-2">
-          Address: {station.address}
-        </p>
+        <p className="text-sm text-gray-600 mb-2">Address: {station.address}</p>
         <p className="text-sm text-gray-600 mb-4">
           Available Slots: {station.availableSlots}/{station.totalSlots}
         </p>
@@ -30,7 +62,8 @@ const BookingForm = ({ station, onClose, onSuccess }) => {
           ₹{station.pricePerHour}/hour
         </p>
 
-        {/* Example Booking Action */}
+        {error && <p className="text-red-500 text-sm mb-3">{error}</p>}
+
         <div className="flex justify-end space-x-3">
           <button
             onClick={onClose}
@@ -39,20 +72,17 @@ const BookingForm = ({ station, onClose, onSuccess }) => {
             Cancel
           </button>
           <button
-            onClick={() => {
-              onSuccess();
-              onClose();
-            }}
-            className="px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700"
+            onClick={handleBooking}
+            disabled={loading}
+            className="px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50"
           >
-            Confirm Booking
+            {loading ? "Booking..." : "Confirm Booking"}
           </button>
         </div>
       </div>
     </div>
   );
 
-  // Render portal to body
   return ReactDOM.createPortal(modalContent, document.body);
 };
 
